@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "301561246722",
+    "project_id": "socialapp-fcce7",
+    "storage_bucket": "socialapp-fcce7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:301561246722:android:14c7eeb8a8b9518535e31b",
+        "android_client_info": {
+          "package_name": "com.hazal.socialapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcI0O18kgGwjc9X2qVpjx96iUIdIBD1tQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
