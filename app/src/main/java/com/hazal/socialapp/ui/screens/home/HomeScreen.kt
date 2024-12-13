@@ -3,7 +3,11 @@ package com.hazal.socialapp.ui.screens.home
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -12,9 +16,11 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -25,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.location.LocationServices
@@ -38,6 +45,8 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.hazal.socialapp.data.remote.model.Geocodes
 import com.hazal.socialapp.data.remote.model.Main
 import com.hazal.socialapp.data.remote.model.Result
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -64,8 +73,13 @@ fun HomeScreen(
         }
     }
 
-    Content(places, { param1 ->
-    viewModel.getSearchedPlaces()}, userLocation)
+    Content(places, { param ->
+        viewModel.getSearchedPlaces(
+            query = param,
+            ll = "${userLocation?.latitude},${userLocation?.longitude}",
+            radius = 1000
+        )
+    }, userLocation)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,6 +90,9 @@ private fun Content(
     currentLocation: LatLng?
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    var selectedPlace by remember { mutableStateOf<Result?>(null) }
+    var isSheetVisible by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -100,7 +117,14 @@ private fun Content(
                 })
             }
         }
-        UserLocationMap(places, currentLocation)
+        UserLocationMap(places,
+            currentLocation
+        ) { result ->
+            selectedPlace = result
+            isSheetVisible = true
+        }
+        if (isSheetVisible) LocationDetailsBottomSheet(selectedPlace = selectedPlace
+        ) { isSheetVisible = false }
     }
 }
 
@@ -127,7 +151,11 @@ fun CategoryMenu(onCategorySelected: (String) -> Unit) {
 }
 
 @Composable
-fun UserLocationMap(places: List<Result?>?, currentLocation: LatLng?) {
+fun UserLocationMap(
+    places: List<Result?>?,
+    currentLocation: LatLng?,
+    onMarkerClick: (Result) -> Unit
+) {
 
     GoogleMap(
         properties = MapProperties(isMyLocationEnabled = true),
@@ -144,11 +172,39 @@ fun UserLocationMap(places: List<Result?>?, currentLocation: LatLng?) {
             if (latitude != null && longitude != null) {
                 Marker(
                     state = MarkerState(LatLng(latitude, longitude)),
-                    title = place.name
+                    title = place.name,
+                    onInfoWindowClick = { onMarkerClick.invoke(place) }
                 )
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LocationDetailsBottomSheet(
+    selectedPlace: Result?,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        sheetState = rememberModalBottomSheetState(),
+        content = {
+            if (selectedPlace != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(text = "Place Details")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "Name: ${selectedPlace.name}")
+                    Text(text = "Latitude: ${selectedPlace.geocodes?.main?.latitude}")
+                    Text(text = "Longitude: ${selectedPlace.geocodes?.main?.longitude}")
+                }
+            }
+        },
+        onDismissRequest = {}
+    )
 }
 
 @Preview
