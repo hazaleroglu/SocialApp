@@ -41,7 +41,7 @@ class HomeViewModel @Inject constructor(
                 }
 
                 is NetworkResult.Exception -> {
-                    Log.d("doga", "search: ${response.e}")
+                    Log.d("dogaa", "search: ${response.e}")
                 }
             }
         }
