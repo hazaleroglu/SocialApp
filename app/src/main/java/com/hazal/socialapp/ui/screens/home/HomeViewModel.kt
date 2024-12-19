@@ -3,6 +3,7 @@ package com.hazal.socialapp.ui.screens.home
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hazal.socialapp.data.remote.api.SortOptions
 import com.hazal.socialapp.domain.repository.FoursquareRepository
 import com.hazal.socialapp.internal.util.NetworkResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -41,6 +42,26 @@ class HomeViewModel @Inject constructor(
 
                 is NetworkResult.Exception -> {
                     Log.d("doga", "search: ${response.e}")
+                }
+            }
+        }
+    }
+
+    fun getPlacePhotos(id: String, limit: Int?, sort: SortOptions?) {
+        viewModelScope.launch {
+            showLoading()
+            when (val response = repo.getPlacePhotos(id,limit, sort)) {
+                is NetworkResult.Success -> {
+                    _uiState.update { _uiState.value.copy(placePhotosResponse = response.data) }
+                    Log.d("doga", "success: ${response.data}")
+                }
+
+                is NetworkResult.Error -> {
+                    Log.d("doga", "error: ${response.message}")
+                }
+
+                is NetworkResult.Exception -> {
+                    Log.d("doga", "photos: ${response.e}")
                 }
             }
         }

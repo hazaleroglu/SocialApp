@@ -2,6 +2,8 @@ package com.hazal.socialapp.ui.screens.home
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.widget.ImageView
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +11,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.DropdownMenu
@@ -29,11 +34,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.rememberAsyncImagePainter
+import coil.compose.rememberImagePainter
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -42,11 +50,12 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.hazal.socialapp.data.remote.api.SortOptions
 import com.hazal.socialapp.data.remote.model.Geocodes
 import com.hazal.socialapp.data.remote.model.Main
+import com.hazal.socialapp.data.remote.model.PlacePhotoResponseItem
+import com.hazal.socialapp.data.remote.model.PlacePhotosResponse
 import com.hazal.socialapp.data.remote.model.Result
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -57,6 +66,7 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     val places = uiState.searchResponse?.results
+    val placePhotos = uiState.placePhotosResponse
     var userLocation by remember { mutableStateOf<LatLng?>(LatLng(40.9223982, 29.12608)) }
 
     LaunchedEffect(Unit) {
@@ -73,21 +83,25 @@ fun HomeScreen(
         }
     }
 
-    Content(places, { param ->
+    Content(places, placePhotos, { param ->
         viewModel.getSearchedPlaces(
             query = param,
             ll = "${userLocation?.latitude},${userLocation?.longitude}",
             radius = 1000
         )
-    }, userLocation)
+    }, userLocation, {
+        viewModel.getPlacePhotos(it, 3, SortOptions.POPULAR)
+    })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Content(
     places: List<Result?>?,
+    placePhotos: PlacePhotosResponse?,
     onCategorySelected: (String) -> Unit,
-    currentLocation: LatLng?
+    currentLocation: LatLng?,
+    getPlacePhotos: (String) -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var selectedPlace by remember { mutableStateOf<Result?>(null) }
@@ -117,13 +131,17 @@ private fun Content(
                 })
             }
         }
-        UserLocationMap(places,
+        UserLocationMap(
+            places,
             currentLocation
         ) { result ->
+            result.fsqId?.let { id -> getPlacePhotos.invoke(id) }
             selectedPlace = result
             isSheetVisible = true
         }
-        if (isSheetVisible) LocationDetailsBottomSheet(selectedPlace = selectedPlace
+        if (isSheetVisible) LocationDetailsBottomSheet(
+            selectedPlace = selectedPlace,
+            photos = placePhotos
         ) { isSheetVisible = false }
     }
 }
@@ -184,8 +202,11 @@ fun UserLocationMap(
 @Composable
 fun LocationDetailsBottomSheet(
     selectedPlace: Result?,
+    photos: PlacePhotosResponse?,
     onDismiss: () -> Unit
 ) {
+    val photoList = mutableListOf<PlacePhotoResponseItem?>()
+    photos?.forEach { photoList.add(it) }
     ModalBottomSheet(
         sheetState = rememberModalBottomSheetState(),
         content = {
@@ -195,6 +216,23 @@ fun LocationDetailsBottomSheet(
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
+                    LazyRow {
+                        items(photoList) { image ->
+                            if (image?.imageUrl != null){
+                                val painter =
+                                    rememberAsyncImagePainter(model = image)
+                                Image(
+                                    painter = painter,
+                                    contentDescription = "Slider Image",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .fillMaxWidth()
+                                        .height(200.dp)
+                                )
+                            }
+                        }
+                    }
                     Text(text = "Place Details")
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(text = "Name: ${selectedPlace.name}")
@@ -203,7 +241,30 @@ fun LocationDetailsBottomSheet(
                 }
             }
         },
-        onDismissRequest = {}
+        onDismissRequest = { onDismiss() }
+    )
+}
+
+@Preview
+@Composable
+fun LocationDetailsBottomSheetPreview() {
+    LocationDetailsBottomSheet(
+        selectedPlace = Result(
+            categories = null,
+            chains = null,
+            distance = null,
+            geocodes = Geocodes(
+                main = Main(
+                    40.9223982, 29.12608
+                )
+            ),
+            link = null,
+            fsqId = "jfdklfdklfklşsşl",
+            location = null,
+            name = "Espresso LAB",
+            relatedPlaces = null,
+            timezone = null
+        ), PlacePhotosResponse() ,{}
     )
 }
 
@@ -222,13 +283,16 @@ private fun HomeScreenPreview() {
                     )
                 ),
                 link = null,
+                fsqId = "jfdklfdklfklşsşl",
                 location = null,
                 name = "Espresso LAB",
                 relatedPlaces = null,
                 timezone = null
             )
         ),
+        PlacePhotosResponse(),
         {},
-        LatLng(40.9223982, 29.12608)
+        LatLng(40.9223982, 29.12608),
+        {}
     )
 }

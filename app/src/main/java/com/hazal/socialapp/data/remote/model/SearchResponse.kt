@@ -22,6 +22,8 @@ data class Result(
     val chains: List<Chain?>?,
     @SerializedName("distance")
     val distance: Int?,
+    @SerializedName("fsq_id")
+    val fsqId: String?,
     @SerializedName("geocodes")
     val geocodes: Geocodes?,
     @SerializedName("link")
